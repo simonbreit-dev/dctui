@@ -12,11 +12,9 @@ type CommandBarView struct {
 }
 
 func NewCommandBarView() *CommandBarView {
-
 	labelStyle := tcell.StyleDefault
 	labelStyle.Background(tcell.ColorBlue)
-
-	input := tview.NewInputField().SetLabel(": ").SetFieldWidth(0)
+	input := tview.NewInputField().SetLabel("> ").SetFieldWidth(0)
 	input.SetBorder(true).SetBorderColor(tcell.ColorLightBlue)
 	input.SetBackgroundColor(theme.BgColor)
 	input.SetFieldBackgroundColor(theme.BgColor)

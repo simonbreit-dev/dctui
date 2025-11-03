@@ -63,12 +63,14 @@ func (c *Controller) setupGlobalShortcuts() {
 }
 
 func (c *Controller) openCommandBar() {
+	c.rootGrid.SetRows(5, 3, 0)
 	c.state.CommandMode = true
 	c.app.SetFocus(c.commandBar.Primitive)
 	c.commandBar.Primitive.SetText("")
 }
 
 func (c *Controller) closeCommandBar() {
+	c.rootGrid.SetRows(5, 1, 0)
 	c.state.CommandMode = false
 	c.app.SetFocus(c.mainView.Primitive)
 }
