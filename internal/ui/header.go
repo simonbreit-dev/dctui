@@ -1,4 +1,4 @@
-package views
+package ui
 
 import (
 	"dctui/internal/theme"
@@ -7,12 +7,16 @@ import (
 )
 
 type HeaderView struct {
-	Primitive *tview.TextView
+	primitive *tview.TextView
 }
 
 func NewHeaderView() *HeaderView {
 	tv := tview.NewTextView()
 	tv.SetText("VM:\nRAM:\nCPU:\n ")
 	tv.SetBackgroundColor(theme.BgColor)
-	return &HeaderView{Primitive: tv}
+	return &HeaderView{primitive: tv}
 }
+
+func (v *HeaderView) Render() {}
+
+func (v *HeaderView) GetPrimitive() tview.Primitive { return v.primitive }
