@@ -1,4 +1,4 @@
-package services
+package service
 
 import (
 	"context"
@@ -14,7 +14,7 @@ type DockerService struct {
 func NewDockerService() *DockerService {
 	cli, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
-		print("shit")
+		panic("shit")
 	}
 	return &DockerService{
 		docker: cli,

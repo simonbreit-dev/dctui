@@ -1,7 +1,7 @@
 package main
 
 import (
-	"dctui/internal/services"
+	service "dctui/internal/services"
 	"dctui/internal/ui"
 
 	"github.com/rivo/tview"
@@ -9,17 +9,17 @@ import (
 
 func main() {
 	app := tview.NewApplication()
-	dockerService := services.NewDockerService()
+	docker := service.NewDockerService()
 
 	header := ui.NewHeaderView()
-	mainView := ui.NewMainView(app, dockerService)
+	mainView := ui.NewMainView(app)
 	commandBar := ui.NewCommandBarView(app)
-	layout := ui.NewLayoutView(app, header, commandBar, mainView)
+	layout := ui.NewLayoutView(header.GetPrimitive(), mainView.GetPrimitive(), commandBar.GetPrimitive())
+	controller := ui.NewUIController(app, docker, mainView, header, commandBar, layout)
 
-	controller := ui.NewUIController(app, layout, header, mainView, commandBar)
 	commandBar.SetController(controller)
-
-	if err := app.SetRoot(layout.GetPrimitive(), true).Run(); err != nil {
+	// Root auf Pages setzen (enthält LayoutView)
+	if err := app.SetRoot(controller.GetLayout(), true).Run(); err != nil {
 		panic(err)
 	}
 }
