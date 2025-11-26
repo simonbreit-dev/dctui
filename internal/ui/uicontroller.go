@@ -2,7 +2,6 @@ package ui
 
 import (
 	service "dctui/internal/services"
-	"fmt"
 	"strings"
 
 	"github.com/gdamore/tcell/v2"
@@ -11,60 +10,82 @@ import (
 
 type UIController struct {
 	app        *tview.Application
-	docker     *service.DockerService
-	mainView   *MainView
-	header     *HeaderView
-	commandBar *CommandBarView
 	layout     *LayoutView
+	pages      map[string]Page
+	activePage Page
+	history    []string
+	docker     *service.DockerService
 }
 
-func NewUIController(app *tview.Application, docker *service.DockerService,
-	mainView *MainView, header *HeaderView, commandBar *CommandBarView, layout *LayoutView) *UIController {
-
+func NewUIController(app *tview.Application, layout *LayoutView, docker *service.DockerService) *UIController {
 	c := &UIController{
-		app:        app,
-		docker:     docker,
-		mainView:   mainView,
-		header:     header,
-		commandBar: commandBar,
-		layout:     layout,
+		app:    app,
+		layout: layout,
+		pages:  make(map[string]Page),
+		docker: docker,
 	}
-
-	// MainView Auswahl
-	mainView.OnSelectRow = func(row int, col int) {
-		if row == 0 { // Header-Zeile ignorieren
-			return
-		}
-		containerID := mainView.table.GetCell(row, 0).Text
-		info := c.getContainerInfo(containerID)
-		c.mainView.RenderDetail(info)
-		c.app.SetFocus(c.mainView.GetPrimitive())
-	}
-
-	c.setupInputCapture()
-
-	go c.RefreshMainView()
-
+	c.setupInputCapture() // Globale Shortcuts aktivieren
 	return c
 }
 
-func (c *UIController) GetLayout() tview.Primitive {
-	return c.layout.GetPrimitive()
+func (c *UIController) AddPage(name string, p Page) {
+	c.pages[name] = p
+	switch casted := p.(type) {
+	case *ProjectOverview:
+		casted.OnSelectRow = func(row int, col int, projectName string) {
+			containers := c.docker.FetchContainersForProject(projectName)
+			c.SwitchToPage("projectView", containers)
+		}
+	case *ProjectView:
+
+	}
 }
 
-func (c *UIController) SetCommandBar(cb *CommandBarView) {
-	c.commandBar = cb
+func (c *UIController) SwitchToPage(name string, data any) {
+	if p, ok := c.pages[name]; ok {
+		// Aktuelle Seite speichern, nur wenn es eine echte Seite ist
+		if c.activePage != nil && c.activePage != p {
+			c.history = append(c.history, c.getActivePageName())
+		}
+
+		if c.activePage != nil {
+			c.activePage.OnBlur()
+		}
+
+		c.activePage = p
+		if data != nil {
+			p.RenderWithData(data)
+		}
+		c.activePage.OnFocus()
+		c.layout.SetMainPage(p.GetPrimitive())
+		c.app.SetFocus(p.GetPrimitive())
+	}
 }
 
-func (c *UIController) OpenCommandBar() {
-	c.layout.ExpandCommandBar()
-	c.commandBar.Clear()
-	c.app.SetFocus(c.commandBar.GetPrimitive())
+func (c *UIController) setupInputCapture() {
+	c.app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Key() {
+		case tcell.KeyEsc:
+			if len(c.history) > 0 {
+				// Letzte Seite aus dem Stack holen
+				prev := c.history[len(c.history)-1]
+				c.history = c.history[:len(c.history)-1]
+				c.SwitchToPage(prev, nil)
+				return nil
+			}
+		}
+
+		// Globale Shortcuts
+		switch event.Rune() {
+		case ':':
+			c.layout.ExpandCommandBar()
+		}
+		return event
+	})
 }
 
 func (c *UIController) CloseCommandBar() {
 	c.layout.CollapseCommandBar()
-	c.app.SetFocus(c.mainView.GetPrimitive())
 }
 
 func (c *UIController) ExecuteCommand(cmd string) {
@@ -78,58 +99,11 @@ func (c *UIController) ExecuteCommand(cmd string) {
 	c.CloseCommandBar()
 }
 
-func (c *UIController) setupInputCapture() {
-	c.app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		// ESC Detailansicht schließen
-		if c.mainView.IsDetailMode() && event.Key() == tcell.KeyEsc {
-			c.mainView.RenderWithData(c.docker.FetchContainers())
-			c.app.SetFocus(c.mainView.GetPrimitive())
-			return nil
-		}
-
-		// Globale Shortcuts
-		switch event.Rune() {
-		case ':':
-			c.OpenCommandBar()
-			c.app.SetFocus(c.commandBar.GetPrimitive())
-		case 'r':
-			c.RefreshMainView()
-		case '1':
-			c.app.SetFocus(c.mainView.GetPrimitive())
-		case '3':
-			c.app.SetFocus(c.header.GetPrimitive())
-		}
-		return event
-	})
-}
-
-func (c *UIController) RefreshMainView() {
-	// Service holt die Rohdaten
-	raw := c.docker.FetchContainers()
-
-	// Mapping auf View-kompatible Struktur
-	data := make([]ContainerData, len(raw))
-	for i, ctn := range raw {
-		data[i] = ContainerData{
-			ID:     ctn.ID[:12],
-			Image:  ctn.Image,
-			Status: ctn.Status,
+func (c *UIController) getActivePageName() string {
+	for name, page := range c.pages {
+		if page == c.activePage {
+			return name
 		}
 	}
-
-	// View aktualisieren im UI-Goroutine
-	c.app.QueueUpdateDraw(func() {
-		c.mainView.RenderWithData(raw)
-	})
-}
-
-// Container-Details von DockerService holen
-func (c *UIController) getContainerInfo(containerID string) string {
-	rawContainers := c.docker.FetchContainers()
-	for _, ctn := range rawContainers {
-		if ctn.ID[:12] == containerID {
-			return fmt.Sprintf("ID: %s\nImage: %s\nStatus: %s", ctn.ID, ctn.Image, ctn.Status)
-		}
-	}
-	return "Container nicht gefunden"
+	return ""
 }

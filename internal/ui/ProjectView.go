@@ -9,30 +9,29 @@ import (
 	"github.com/rivo/tview"
 )
 
-type MainViewMode int
-
-const (
-	ModeList MainViewMode = iota
-	ModeDetail
-)
-
-type MainView struct {
+type ProjectView struct {
 	app         *tview.Application
 	table       *tview.Table
-	mode        MainViewMode
 	OnSelectRow func(row int, col int)
 }
 
-func NewMainView(app *tview.Application) *MainView {
+func (v *ProjectView) OnFocus() {
+	return
+}
+
+func (v *ProjectView) OnBlur() {
+	return
+}
+
+func NewProjectView(app *tview.Application) *ProjectView {
 	table := tview.NewTable()
 	table.SetSelectable(true, false).
 		SetBorder(true).
 		SetBackgroundColor(theme.BgColor)
 
-	view := &MainView{
+	view := &ProjectView{
 		app:   app,
 		table: table,
-		mode:  ModeList,
 	}
 
 	table.SetSelectedFunc(func(row, col int) {
@@ -44,12 +43,15 @@ func NewMainView(app *tview.Application) *MainView {
 	return view
 }
 
-func (v *MainView) GetPrimitive() tview.Primitive {
+func (v *ProjectView) GetPrimitive() tview.Primitive {
 	return v.table
 }
 
-func (v *MainView) RenderWithData(containers []container.Summary) {
-	v.mode = ModeList
+func (v *ProjectView) RenderWithData(data any) {
+	containers, err := data.([]container.Summary)
+	if !err {
+		return
+	}
 	v.table.Clear()
 
 	// Header
@@ -79,21 +81,4 @@ func (v *MainView) RenderWithData(containers []container.Summary) {
 	if v.OnSelectRow != nil {
 		v.table.SetSelectedFunc(v.OnSelectRow)
 	}
-}
-
-func (v *MainView) RenderDetail(info string) {
-	v.mode = ModeDetail
-	v.table.Clear()
-	v.table.SetCell(0, 0, tview.NewTableCell(info))
-}
-
-func (v *MainView) IsDetailMode() bool {
-	return v.mode == ModeDetail
-}
-
-// ContainerData ist eine einfache Struktur, die Controller an View liefert
-type ContainerData struct {
-	ID     string
-	Image  string
-	Status string
 }

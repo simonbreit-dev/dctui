@@ -1,33 +1,34 @@
 package ui
 
 import (
-	"dctui/internal/theme"
-
 	"github.com/rivo/tview"
 )
 
 type LayoutView struct {
+	app        *tview.Application
 	grid       *tview.Grid
-	header     tview.Primitive
-	mainView   tview.Primitive
-	commandBar tview.Primitive
+	header     *HeaderView
+	mainArea   *tview.Flex // Hier werden die Seiten geladen
+	commandBar *CommandBarView
 }
 
-func NewLayoutView(header, mainView, commandBar tview.Primitive) *LayoutView {
-	grid := tview.NewGrid().
-		SetRows(3, 1, 0). // Header, Main, CommandBar
-		SetColumns(0).
-		AddItem(header, 0, 0, 1, 1, 0, 0, false).
-		AddItem(commandBar, 1, 0, 1, 1, 0, 0, false).
-		AddItem(mainView, 2, 0, 1, 1, 0, 0, true)
+func NewLayoutView(header *HeaderView, commandBar *CommandBarView, app *tview.Application) *LayoutView {
+	mainArea := tview.NewFlex()
+	mainArea.SetDirection(tview.FlexRow)
 
-	grid.SetBackgroundColor(theme.BgColor)
+	grid := tview.NewGrid().
+		SetRows(3, 1, 0). // Header, MainArea, CommandBar
+		SetColumns(0).
+		AddItem(header.GetPrimitive(), 0, 0, 1, 1, 0, 0, false).
+		AddItem(commandBar.GetPrimitive(), 1, 0, 1, 1, 0, 0, false).
+		AddItem(mainArea, 2, 0, 1, 1, 0, 0, true)
 
 	return &LayoutView{
 		grid:       grid,
 		header:     header,
-		mainView:   mainView,
+		mainArea:   mainArea,
 		commandBar: commandBar,
+		app:        app,
 	}
 }
 
@@ -35,11 +36,17 @@ func (l *LayoutView) GetPrimitive() tview.Primitive {
 	return l.grid
 }
 
-// CommandBar expand/collapse falls gewünscht
+func (l *LayoutView) SetMainPage(p tview.Primitive) {
+	l.mainArea.Clear()
+	l.mainArea.AddItem(p, 0, 1, true)
+}
+
 func (l *LayoutView) ExpandCommandBar() {
 	l.grid.SetRows(3, 3, 0) // CommandBar größer
+	l.app.SetFocus(l.commandBar.GetPrimitive())
 }
 
 func (l *LayoutView) CollapseCommandBar() {
+	l.app.SetFocus(l.mainArea)
 	l.grid.SetRows(3, 1, 0) // CommandBar wieder klein
 }
